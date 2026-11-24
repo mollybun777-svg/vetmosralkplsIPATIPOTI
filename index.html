@@ -65,4 +65,175 @@ footer{text-align:center;color:#806e7d;font:10px Arial,sans-serif;letter-spacing
   <button class="active" data-filter="all">Все</button>
   <button data-filter="manga">Манга</button>
   <button data-filter="figures">Фигурки</button>
-  <button
+  <button data-filter="other">Прочее</button>
+ </nav>
+ <section class="grid" id="items"></section>
+</main>
+<script>
+const DB_URL = "https://ilobemisderyveritiwarya-default-rtdb.europe-west1.firebasedatabase.app/bookings.json";
+
+const gifts = [
+ {id:"punpun",cat:"manga",label:"Манга",title:"Спокойной ночи, Пунпун",desc:"начиная со 2-й части",image:"https://i.ibb.co/ynrJZ2sg/OIP.webp",alt:"Обложка второго тома манги Спокойной ночи, Пунпун",url:"https://book-ye.com.ua/khudozhnya-literatura/komiksy/manga/dobranich-punpune-chastyna-2/?q=%D0%BF%D1%83%D0%BD%D0%BF%D1%83%D0%BD",symbol:"☾"},
+ {id:"another",cat:"manga",label:"Манга",title:"Иная",desc:"манга «Иная» (Another).",image:"https://i.ibb.co/Q3sHn5Lp/photo-2026-11-23-21-01-29.jpg",alt:"Обложка манги Иная",url:"https://www.pulsar.ua/ru/products/manga-inaya-another-tom-1/",symbol:"♣"},
+ {id:"saya",cat:"figures",label:"Фигурки",title:"фигурка по Saya no Uta",desc:"любая фигурка с Саей.",image:"https://i.ibb.co/0RRXQFP3/photo-2026-11-23-16-43-01.jpg",alt:"Персонаж Сая из Saya no Uta",symbol:"♡"},
+ {id:"rei",cat:"figures",label:"Фигурки",title:"Аянами Рей",desc:"любая фигурка Рей.",image:"https://i.ibb.co/qLGkWwrS/photo-2026-11-23-16-43-58.jpg",alt:"Рей Аянами из Neon Genesis Evangelion",symbol:"✧"},
+ {id:"anime",cat:"figures",label:"Фигурки",title:"Аниме-фигурки",desc:"секси аниме тяночки любые",image:"https://i.ibb.co/Fb68v3yV/photo-2026-11-23-20-46-55.jpg",alt:"Аниме-фигурки",symbol:"♠"},
+ {id:"flowerknows",cat:"other",label:"Прочее",title:"Хайлайтер Flower Knows (L04)",desc:"",image:"https://i.ibb.co/8D88bm7S/photo-2026-11-23-16-40-37.jpg",alt:"Косметика Flower Knows",url:"https://a.aliexpress.com/_ExUt5Ny",symbol:"✿"},
+ {id:"chokers",cat:"other",label:"Прочее",title:"Чокеры",desc:"Какие-нибудь прикольные чокеры",image:"https://i.ibb.co/KpdyV5f7/photo-2026-11-24-09-38-23.jpg",alt:"Чокеры",symbol:"♢"},
+ {id:"nyuroki",cat:"other",label:"Прочее",title:"ньюроки",desc:"40",image:"https://i.ibb.co/4nbDybM7/M-TANK120-NSHLACE-S1-jpg.webp",alt:"Ботинки New Rock",url:"https://www.metalshop.com.ua/p/117412-vzuttia-new-rock-italiiskyi-nehro-m-tank120nshlace-s1/",symbol:"✧"},
+ {id:"easter-egg",cat:"other",label:"Прочее",title:"ПАСХАЛКА",desc:"zxcursed",image:"https://i.ibb.co/k6yqzkQ3/kursed-zxcursed-3-1024x801.webp",alt:"Пасхалка",url:"https://www.instagram.com/zxcursed",symbol:"✦"}
+];
+
+const root = document.getElementById("items");
+let filter = "all";
+let booked = {};
+let isLoaded = false;
+
+function escapeHtml(str) {
+ return String(str || "").replace(/[&<>"']/g, m => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+ }[m]));
+}
+
+async function loadBookings() {
+ try {
+  const res = await fetch(DB_URL, { cache: "no-store" });
+  const data = await res.json();
+  booked = (data && typeof data === "object") ? data : {};
+ } catch (e) {
+  console.error("Ошибка загрузки базы:", e);
+ }
+ isLoaded = true;
+ render();
+}
+
+async function bookGift(id, btn) {
+ if (booked[id]) return;
+ if (!confirm("Забронировать этот подарок, чтобы другие видели, что он уже занят?")) return;
+
+ btn.disabled = true;
+ btn.textContent = "Сохранение...";
+
+ try {
+  const res = await fetch(DB_URL, {
+   method: "PATCH",
+   headers: { "Content-Type": "application/json" },
+   body: JSON.stringify({ [id]: true })
+  });
+  if (!res.ok) throw new Error("Ошибка сохранения");
+  booked[id] = true;
+  render();
+ } catch (e) {
+  alert("Не удалось сохранить бронь. Проверьте интернет и попробуйте ещё раз.");
+  btn.disabled = false;
+  btn.textContent = "Забронировать";
+ }
+}
+
+function render() {
+ root.innerHTML = "";
+ gifts.filter(g => filter === "all" || g.cat === filter).forEach(g => {
+  const isBooked = Boolean(booked[g.id]);
+  const card = document.createElement("article");
+  card.className = "card" + (isBooked ? " booked" : "");
+
+  const pic = document.createElement("div");
+  pic.className = "pic";
+
+  const fallback = document.createElement("span");
+  fallback.textContent = g.symbol;
+
+  const soon = document.createElement("span");
+  soon.className = "soon";
+  soon.textContent = "photo coming soon";
+
+  if (g.image) {
+   const img = document.createElement("img");
+   img.src = g.image;
+   img.alt = g.alt || g.title;
+   img.addEventListener("error", () => {
+    img.remove();
+    pic.appendChild(fallback);
+    pic.appendChild(soon);
+   });
+   pic.appendChild(img);
+  } else {
+   pic.appendChild(fallback);
+   pic.appendChild(soon);
+  }
+
+  const body = document.createElement("div");
+  body.className = "body";
+
+  const cat = document.createElement("div");
+  cat.className = "category";
+  cat.textContent = g.label;
+
+  const title = document.createElement("h2");
+  title.textContent = g.title;
+
+  const desc = document.createElement("p");
+  desc.className = "desc";
+  desc.textContent = g.desc || "";
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+
+  if (g.url) {
+   const link = document.createElement("a");
+   link.className = "link";
+   link.href = g.url;
+   link.target = "_blank";
+   link.rel = "noopener noreferrer";
+   link.textContent = "Открыть ссылку";
+   actions.appendChild(link);
+  } else {
+   const link = document.createElement("a");
+   link.className = "link disabled";
+   link.href = "#";
+   link.setAttribute("aria-disabled", "true");
+   link.textContent = "Ссылка скоро";
+   link.addEventListener("click", e => e.preventDefault());
+   actions.appendChild(link);
+  }
+
+  const btn = document.createElement("button");
+  btn.className = "reserve";
+  btn.type = "button";
+  btn.disabled = !isLoaded || isBooked;
+  btn.textContent = !isLoaded ? "Загрузка..." : (isBooked ? "Забронировано" : "Забронировать");
+  if (!isBooked && isLoaded) {
+   btn.addEventListener("click", () => bookGift(g.id, btn));
+  }
+  actions.appendChild(btn);
+
+  const status = document.createElement("div");
+  status.className = "status";
+  status.setAttribute("aria-live", "polite");
+  status.textContent = !isLoaded ? "Проверяем статус..." : (isBooked ? "Уже забронировано ♡" : "Пока свободно");
+
+  body.appendChild(cat);
+  body.appendChild(title);
+  body.appendChild(desc);
+  body.appendChild(actions);
+  body.appendChild(status);
+
+  card.appendChild(pic);
+  card.appendChild(body);
+  root.appendChild(card);
+ });
+}
+
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+ document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("active"));
+ b.classList.add("active");
+ filter = b.dataset.filter;
+ render();
+}));
+
+render();
+loadBookings();
+setInterval(loadBookings, 5000);
+</script>
+</body>
+</html>
